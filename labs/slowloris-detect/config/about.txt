@@ -1,0 +1,4 @@
+Detecting the Slowloris low-and-slow HTTP denial-of-service attack. The lab
+exercises a vulnerable Apache (prefork) server with a custom Slowloris client,
+mixes in slow-but-legitimate traffic, and builds a connection-state detector
+that must separate malicious slowness from honest slowness, then mitigate it.

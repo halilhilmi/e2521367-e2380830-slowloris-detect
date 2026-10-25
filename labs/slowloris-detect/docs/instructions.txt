@@ -1,0 +1,55 @@
+Title: Detecting the Slowloris Low-and-Slow HTTP DoS Attack
+
+1. Background
+
+Slowloris is a low-and-slow application-layer denial-of-service attack. Instead
+of flooding the server, the attacker opens many connections and sends each an
+INCOMPLETE HTTP request, dripping a header byte every few seconds and never
+finishing. An Apache "prefork" server dedicates one worker per connection, so
+its worker pool fills with these parked connections and real users are turned
+away -- all at almost no bandwidth.
+
+This lab has four machines on one LAN:
+  victim      172.25.0.10   Apache (prefork, small worker pool)
+  attacker    172.25.0.20   runs slowloris.py (our custom client)
+  benign-gen  172.25.0.30   runs clients.py (fast + honest-slow clients)
+  monitor     172.25.0.40   runs detector.py (our connection-state detector)
+
+2. Tasks
+
+2.1 Measure the baseline (no attack), on benign-gen:
+        python3 ~/clients.py baseline
+    Most requests should succeed.
+
+2.2 Start the detector, on monitor:
+        sudo python3 ~/detector.py
+    Leave it running; it logs to /var/log/detector.log.
+
+2.3 Launch the attack, on attacker:
+        python3 ~/slowloris.py
+    It logs to /var/log/slowloris.log.
+
+2.4 Measure availability during the attack, on benign-gen:
+        python3 ~/clients.py during
+    The success rate should fall (availability degraded). The detector should
+    report "DETECTED SLOWLORIS src=172.25.0.20" without flagging 172.25.0.30.
+
+2.5 Enable the defense, on victim:
+        bash ~/mitigate_on.sh
+    This turns on mod_reqtimeout and a per-source connection cap.
+
+2.6 Measure availability after mitigation, on benign-gen:
+        python3 ~/clients.py after
+    The success rate should climb back up (service restored).
+
+3. What is graded
+
+  * attack_effective      availability degraded during the attack
+  * detector_fires        the attacker source was detected
+  * low_false_positives   the honest-slow clients were not flagged
+  * mitigation_restores   availability recovered after the defense
+  * custom_code_executed  the attacker and detector scripts actually ran
+
+4. Stop the lab
+
+    stoplab slowloris-detect
